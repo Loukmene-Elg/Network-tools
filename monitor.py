@@ -3,8 +3,16 @@ import pathlib
 import argparse
 from typing import Union
 
-def check_host(ip_address:str)-> Union[dict[str,str], None]:
-    subprocess.run(f"ping {ip_address}")
+def check_host(ip_address:str)-> bool:
+    test = subprocess.run(
+        ["ping", "-n", "1", "-w", "1000", ip_address],
+        capture_output=True,
+        text=True,
+        timeout=2
+    )
+    if  test.returncode == 0:
+        return True
+    return False
 
 def is_valide_ip(ip:str) -> bool:
     # Split the input into a list of str ex: ["192"."168"."1"."1"]
@@ -41,10 +49,12 @@ def load_data(path: pathlib.Path) -> Union[dict[str, str], str]:
                 continue
              # split the line into two part ex: ["192.168.1.1", "Computer A"]
             parts = current_line.split(maxsplit=1)
+            # When format is incorrect ex: "192.168.1.1ComputerA"
             if not len(parts) == 2 :
                 print(f"Invalid format on line {line_number}")
                 continue
             ip_address, hostname = parts
+            # Check if it is a valide IP 
             if is_valide_ip(ip_address):
                 if ip_address in output:
                     print(f"Duplicated IP {ip_address}: previously on line {seen_lines[ip_address]}, now one line {line_number}")
@@ -65,7 +75,17 @@ def main():
     parse.add_argument("Path", help="Select the path for the targets")
     args = parse.parse_args()
     path = pathlib.Path(args.Path)
-    print(load_data(path))
+    data = load_data(path)
+    if isinstance(data, str):
+        return print(data)
+    for ip in data:
+        test_result = check_host(ip) 
+        if test_result:
+            print(f"Test for {data[ip]} UP")
+        else:
+            print(f"Test for {data[ip]} DOWN")
+   
+
 
 if __name__ == "__main__":
     main()
