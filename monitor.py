@@ -1,7 +1,18 @@
 import subprocess
 import pathlib
 import argparse
+import psutil
+import socket
 from typing import Union
+
+
+
+def network_info()->tuple[str, str|None] | None:
+    
+      for _, addrs in psutil.net_if_addrs().items():
+        for addr in addrs:
+            if addr.family == socket.AF_INET:
+                return addr.address, addr.netmask
 
 def fast_icmp(ip:str)->int:
     try:
