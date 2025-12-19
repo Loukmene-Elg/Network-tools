@@ -4,9 +4,15 @@ import argparse
 import psutil  #type:ignore
 import socket
 import ipaddress
+import time
 from scapy.all import ARP, Ether, srp #type:ignore
 from typing import Union, Tuple, Optional, List
-
+def measure_time(func, *args, **kwargs):
+    start = time.perf_counter()
+    result = func(*args, **kwargs)
+    end = time.perf_counter()
+    print(f"{func.__name__} took {end - start:.4f}s, result: {result}")
+    return result
 def get_interface_lan(traget_ip:str)->List[Optional[str]] | None:
 
     if not is_valide_ip(traget_ip):
@@ -146,6 +152,8 @@ def main():
     if isinstance(data, str):
         return print(data)
     for ip in data:
+        measure_time(arp_check,ip)
+        measure_time(fast_icmp, ip)
         test_result = check_host(ip) 
         if test_result:
             print(f"Test for {ip} {data[ip]} is UP")
