@@ -6,7 +6,157 @@ import socket
 import ipaddress
 import time
 from scapy.all import ARP, Ether, srp #type:ignore
-from typing import Union, Tuple, Optional, List
+from typing import Union, Tuple, Optional, List, Literal
+from collections import defaultdict
+import ctypes
+import struct
+import random
+
+# Optimiszed Arp for windows Thanks for AI could't do it alone 
+def windows_arp_check(ip: str, timeout_ms: int = 100) -> bool:
+    """
+    Fast ARP check on Windows using SendARP with the correct LAN NIC.
+    Returns True if host responds, False otherwise.
+    """
+    try:
+        # Use your updated get_interface_lan() to find NIC on the same LAN
+        nic_info: List[Optional[str]] | None = get_interface_lan(ip)
+        if not nic_info:
+            return False  # Host not on same LAN
+
+        local_ip, _, _ = nic_info  # Extract the NIC IP
+        assert local_ip is not None, "NIC IP should not be None"
+        # Convert IPs to 32-bit integers (network byte order)
+        ip_dest = struct.unpack("!I", socket.inet_aton(ip))[0]
+        ip_source = struct.unpack("!I", socket.inet_aton(local_ip))[0]
+
+        # Prepare buffer for MAC address (6 bytes)
+        mac_addr = (ctypes.c_ubyte * 6)()
+        mac_addr_len = ctypes.c_ulong(6)
+
+        # Call SendARP with source IP of the correct NIC
+        iphlpapi = ctypes.windll.iphlpapi
+        result = iphlpapi.SendARP(
+            ip_dest,           # Destination IP
+            ip_source,         # Source IP = NIC IP
+            ctypes.byref(mac_addr),
+            ctypes.byref(mac_addr_len)
+        )
+
+        return result == 0
+
+    except Exception as e:
+        print(f"Error in windows_arp_check: {e}")
+        return False
+
+
+def compare_arp_icmp_with_metrics(
+    ip: str,
+    runs: int = 20
+) -> Tuple[Literal["ARP", "ICMP", "Tie", "Error"], float, float]:
+
+    arp_times = []
+    icmp_times = []
+
+    for _ in range(runs):
+        methods = ["ARP", "ICMP"]
+        random.shuffle(methods)
+
+        for method in methods:
+            if method == "ARP":
+                start = time.perf_counter()
+                arp_ok = windows_arp_check(ip)
+                arp_times.append(time.perf_counter() - start)
+            else:
+                start = time.perf_counter()
+                icmp_ok = (fast_icmp(ip) == 0)
+                icmp_times.append(time.perf_counter() - start)
+
+    if not arp_times or not icmp_times:
+        return "Error", 0.0, 0.0
+
+    avg_arp = sum(arp_times) / len(arp_times)
+    avg_icmp = sum(icmp_times) / len(icmp_times)
+
+    if abs(avg_arp - avg_icmp) < 0.001:
+        faster = "Tie"
+    elif avg_arp < avg_icmp:
+        faster = "ARP"
+    else:
+        faster = "ICMP"
+
+    return faster, avg_arp, avg_icmp
+
+def compare_arp_icmp(ip: str) -> Literal["ARP", "ICMP", "Tie", "Error"]|None:
+    """
+    Measures the time for arp_check() and fast_icmp() on a single host
+    and returns which method is faster.
+    """
+    try:
+        # Measure ARP
+        nic = get_interface_lan(ip)
+        if not nic:
+            return None
+        start_arp = time.perf_counter()
+        arp_result = arp_check(ip,nic)
+        end_arp = time.perf_counter()
+        arp_time = end_arp - start_arp
+
+        # Measure ICMP
+        start_icmp = time.perf_counter()
+        icmp_result = fast_icmp(ip)
+        end_icmp = time.perf_counter()
+        icmp_time = end_icmp - start_icmp
+
+        # Compare times
+        if not arp_result and not icmp_result:
+            return "Error"  # Host not reachable by either method
+
+        if abs(arp_time - icmp_time) < 0.001:  # within 1 ms
+            return "Tie"
+        elif arp_time < icmp_time:
+            return "ARP"
+        else:
+            return "ICMP"
+
+    except Exception as e:
+        print(f"Error comparing ARP and ICMP for {ip}: {e}")
+        return "Error"
+
+def benchmark_hosts(hosts: dict[str, str], runs: int = 5):
+    """
+    Benchmark fast_icmp and arp_check on a list of hosts.
+    hosts: dict mapping IP -> hostname
+    runs: number of times to repeat each test
+    """
+    results = defaultdict(lambda: {"icmp": [], "arp": []})
+
+    for ip in hosts:
+        print(f"\nBenchmarking {ip} ({hosts[ip]})")
+        nic = get_interface_lan(ip)
+        if not nic:
+            return None
+        # Run multiple times
+        for i in range(runs):
+            # Measure fast_icmp
+            start = time.perf_counter()
+            fast_icmp(ip)
+            end = time.perf_counter()
+            results[ip]["icmp"].append(end - start)
+
+            # Measure arp_check
+            start = time.perf_counter()
+            arp_check(ip, nic)
+            end = time.perf_counter()
+            results[ip]["arp"].append(end - start)
+
+        # Print averages
+        avg_icmp = sum(results[ip]["icmp"]) / runs
+        avg_arp = sum(results[ip]["arp"]) / runs
+        print(f"Average fast_icmp: {avg_icmp:.4f}s, Average arp_check: {avg_arp:.4f}s")
+
+    return results
+
 def measure_time(func, *args, **kwargs):
     start = time.perf_counter()
     result = func(*args, **kwargs)
@@ -27,8 +177,7 @@ def get_interface_lan(traget_ip:str)->List[Optional[str]] | None:
             return [local_ip, local_mask, interface]
     return None
 
-def arp_check(target_ip, timeout=1)-> bool:
-    nic_info = get_interface_lan(target_ip)
+def arp_check(target_ip,nic_info:List[Optional[str]],timeout=0.1)-> bool:
     if not nic_info:
         return False
     _,_,interface = nic_info
@@ -38,7 +187,7 @@ def arp_check(target_ip, timeout=1)-> bool:
     packet = broadcast / arp_request
 
     # Send the packet on the network
-    answered, unanswered = srp(packet, timeout=timeout, iface=interface, verbose=False)
+    answered, unanswered = srp(packet, timeout=timeout, iface=interface,retry=0, verbose=False)
     
     return bool(answered)  # True if host replied
 
@@ -76,16 +225,13 @@ def slow_icmp(ip:str)->int:
         return 1     
 
 def check_host(ip_address:str)-> bool:
-    if get_interface_lan(ip_address):
-        if arp_check(ip_address):
-            return True
-    """
+    nic = get_interface_lan(ip_address)
+    if nic and arp_check(ip_address, nic):
+        return True
+    
     if fast_icmp(ip_address) == 0:
         return True
-    if slow_icmp(ip_address) == 0:
-        return True
-    """
-    return False
+    return slow_icmp(ip_address) == 0
 
 def is_valide_ip(ip:str) -> bool:
     # Split the input into a list of str ex: ["192"."168"."1"."1"]
@@ -152,14 +298,11 @@ def main():
     if isinstance(data, str):
         return print(data)
     for ip in data:
-        measure_time(arp_check,ip)
-        measure_time(fast_icmp, ip)
         test_result = check_host(ip) 
         if test_result:
             print(f"Test for {ip} {data[ip]} is UP")
         else:
-            print(f"Test for {ip} {data[ip]} is DOWN")
-    
+            print(f"Test for {ip} {data[ip]} is DOWN") 
 if __name__ == "__main__":
     main()
 
