@@ -1,18 +1,49 @@
 import subprocess
 import pathlib
 import argparse
-import psutil
+import psutil  #type:ignore
 import socket
-from typing import Union
+import ipaddress
+from scapy.all import ARP, Ether, srp #type:ignore
+from typing import Union, Tuple, Optional, List
 
+def get_interface_lan(traget_ip:str)->List[Optional[str]] | None:
 
+    if not is_valide_ip(traget_ip):
+        return None
 
-def network_info()->tuple[str, str|None] | None:
+    network = network_info()
+    if not network:
+        return None
+    for local_ip, local_mask, interface in network:
+        current_ip4 = ipaddress.IPv4Network(f"{local_ip}/{local_mask}",strict=False)
+        if ipaddress.IPv4Address(traget_ip) in current_ip4:
+            return [local_ip, local_mask, interface]
+    return None
+
+def arp_check(target_ip, timeout=1)-> bool:
+    nic_info = get_interface_lan(target_ip)
+    if not nic_info:
+        return False
+    _,_,interface = nic_info
+     # Construct an Ethernet frame + ARP request
+    arp_request = ARP(pdst=target_ip)
+    broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
+    packet = broadcast / arp_request
+
+    # Send the packet on the network
+    answered, unanswered = srp(packet, timeout=timeout, iface=interface, verbose=False)
     
-      for _, addrs in psutil.net_if_addrs().items():
+    return bool(answered)  # True if host replied
+
+
+def network_info()->list[List[Optional[str]]]:
+    output = []
+    for interface, addrs in psutil.net_if_addrs().items():
         for addr in addrs:
             if addr.family == socket.AF_INET:
-                return addr.address, addr.netmask
+                output.append([addr.address, addr.netmask, interface])
+    return output
 
 def fast_icmp(ip:str)->int:
     try:
@@ -39,10 +70,15 @@ def slow_icmp(ip:str)->int:
         return 1     
 
 def check_host(ip_address:str)-> bool:
+    if get_interface_lan(ip_address):
+        if arp_check(ip_address):
+            return True
+    """
     if fast_icmp(ip_address) == 0:
         return True
     if slow_icmp(ip_address) == 0:
         return True
+    """
     return False
 
 def is_valide_ip(ip:str) -> bool:
@@ -115,9 +151,7 @@ def main():
             print(f"Test for {ip} {data[ip]} is UP")
         else:
             print(f"Test for {ip} {data[ip]} is DOWN")
-   
-
-
+    
 if __name__ == "__main__":
     main()
 
