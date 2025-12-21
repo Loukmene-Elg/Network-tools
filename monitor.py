@@ -13,14 +13,14 @@ import struct
 import random
 
 # Optimiszed Arp for windows Thanks for AI could't do it alone 
-def windows_arp_check(ip: str, timeout_ms: int = 100) -> bool:
+def windows_arp_check(ip: str,nic_info:List[Optional[str]]|None, timeout_ms: int = 100) -> bool:
     """
     Fast ARP check on Windows using SendARP with the correct LAN NIC.
     Returns True if host responds, False otherwise.
     """
     try:
         # Use your updated get_interface_lan() to find NIC on the same LAN
-        nic_info: List[Optional[str]] | None = get_interface_lan(ip)
+        
         if not nic_info:
             return False  # Host not on same LAN
 
@@ -54,7 +54,8 @@ def compare_arp_icmp_with_metrics(
     ip: str,
     runs: int = 20
 ) -> Tuple[Literal["ARP", "ICMP", "Tie", "Error"], float, float]:
-
+    nic_info = get_interface_lan(ip)
+    
     arp_times = []
     icmp_times = []
 
@@ -65,7 +66,7 @@ def compare_arp_icmp_with_metrics(
         for method in methods:
             if method == "ARP":
                 start = time.perf_counter()
-                arp_ok = windows_arp_check(ip)
+                arp_ok = windows_arp_check(ip, nic_info)
                 arp_times.append(time.perf_counter() - start)
             else:
                 start = time.perf_counter()
@@ -283,7 +284,6 @@ def load_data(path: pathlib.Path) -> Union[dict[str, str], str]:
                 print(f"invalid IP on line {line_number}")
                 continue
     return output
-
 
 
 def main():
