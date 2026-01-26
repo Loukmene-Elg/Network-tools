@@ -13,10 +13,10 @@ def check_host(ip_address:str)-> bool:
         return True
     return slow_icmp(ip_address) == 0
 
-def Single_host_check(ip_addres, nic_info):
-    if windows_arp_check(ip_addres, nic_info):
+def Single_host_check(ip_address: str, nic_info: list[str | None] | None) -> bool:
+    if windows_arp_check(ip_address, nic_info):
         return True
     
-    if fast_icmp(ip_addres) == 0:
+    if fast_icmp(ip_address) == 0:
         return True
-    return slow_icmp(ip_addres) == 0
+    return slow_icmp(ip_address) == 0

@@ -17,6 +17,7 @@ def windows_arp_check(ip: str, nic_info: List[Optional[str]] | None, timeout_ms:
     Returns True if host responds, False otherwise.
     """
     try:
+        flush_arp(ip)
         if not nic_info:
             print(f"  No NIC info for {ip}")
             return False

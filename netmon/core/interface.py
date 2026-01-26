@@ -5,7 +5,7 @@ import psutil #type:ignore
 from netmon.utils.ip import is_valide_ip 
 
 def network_info()->list[List[Optional[str]]]:
-    output = []
+    output: list[List[Optional[str]]] = []
     interface_addrs = psutil.net_if_addrs()
     stats = psutil.net_if_stats()
     for interface, addrs in interface_addrs.items():

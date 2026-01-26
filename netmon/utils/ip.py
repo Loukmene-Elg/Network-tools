@@ -21,7 +21,7 @@ def create_subnet_hostes(ip:str, mask:str, limit:int = 4096)->List[str|None]:
         network = ipaddress.IPv4Network(f"{ip}/{mask}", strict=False)
     except ValueError:
         return[]
-    hosts = []
+    hosts: list[str|None] = []
     for host in network.hosts():
         if len(hosts) >= limit:
             return hosts
