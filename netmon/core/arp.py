@@ -50,7 +50,7 @@ def windows_arp_check(ip: str, nic_info: List[Optional[str]] | None, timeout_ms:
         if result == 0:
             # Success! Optionally print MAC
             mac_str = ':'.join(f'{b:02x}' for b in mac_addr)
-            print(f"  ✓ ARP resolved: {ip} -> {mac_str}")
+            #print(f"  ✓ ARP resolved: {ip} -> {mac_str}")
             return True
         else:
             # Decode common error codes
@@ -61,7 +61,7 @@ def windows_arp_check(ip: str, nic_info: List[Optional[str]] | None, timeout_ms:
                 1231: "Network location cannot be reached",
             }
             error_msg = error_messages.get(result, f"Unknown error {result}")
-            print(f"  ✗ SendARP failed for {ip}: {error_msg}")
+            #print(f"  ✗ SendARP failed for {ip}: {error_msg}")
             return False
 
     except Exception as e:

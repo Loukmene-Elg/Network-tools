@@ -1,10 +1,9 @@
 from netmon.core.interface import network_info
-from netmon.utils.ip import create_subnet_hostes
+from netmon.utils.ip import create_subnet_hostes, sort_ip
 from netmon.core.check import Single_host_check
 from concurrent.futures import ThreadPoolExecutor, as_completed
 def search():
     all_nics = network_info()
-
     output: dict[str, bool] = {}
 
     for address, subnet, interface in all_nics:
@@ -25,8 +24,10 @@ def search():
                     print(f"Error checking {host_ip}: {e}")
 
     # Print nicely
-    for ip, alive in output.items():
-        if alive:
-            print(f"{ip} is UP")
+    
+    alive_hostes = {ip:status for ip, status in output.items() if status}
+    alive_hostes = sort_ip(alive_hostes)
+    for host in alive_hostes:
+        print(f"{host} is UP")
 
     return output

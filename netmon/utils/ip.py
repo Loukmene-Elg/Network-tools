@@ -1,5 +1,5 @@
 import ipaddress
-from typing import List
+from typing import List, Dict
 def is_valide_ip(ip:str) -> bool:
     # Split the input into a list of str ex: ["192"."168"."1"."1"]
     ip_parts = ip.split(".")
@@ -31,3 +31,7 @@ def create_subnet_hostes(ip:str, mask:str, limit:int = 4096)->List[str|None]:
 
     
     return hosts
+
+def sort_ip(list_hostes:Dict[str, bool])->Dict[str,bool]:
+    
+    return dict(sorted(list_hostes.items(), key=lambda item: ipaddress.ip_address(item[0])))
