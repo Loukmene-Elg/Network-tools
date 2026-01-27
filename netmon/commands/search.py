@@ -29,5 +29,6 @@ def search():
     alive_hostes = sort_ip(alive_hostes)
     for host in alive_hostes:
         print(f"{host} is UP")
-
+        with open("netmon_scan_results.txt", "a") as f:
+            f.write(f"{host} is UP\n")
     return output

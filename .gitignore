@@ -2,7 +2,7 @@
 Environment/
 venv/
 .env/
-
+netmon_scan_results.txt
 # Python cache
 __pycache__/
 *.pyc
