@@ -2,12 +2,14 @@ from netmon.core.interface import network_info
 from netmon.utils.ip import create_subnet_hostes, sort_ip
 from netmon.core.check import Single_host_check
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from netmon.core.logger import logger
 def search():
     all_nics = network_info()
     output: dict[str, bool] = {}
 
     for address, subnet, interface in all_nics:
         if address is None or subnet is None:
+            logger.warning("No nic detected")
             return {"there is a nic with no address or subnet": False}
         hosts = create_subnet_hostes(ip=address,mask=subnet)
         nic_info: list[str | None] = [address, subnet, interface]
@@ -21,14 +23,14 @@ def search():
                     output[host_ip] = is_up
                 except Exception as e:
                     output[host_ip] = False
-                    print(f"Error checking {host_ip}: {e}")
+                    logger.warning(f"Error checking {host_ip}: {e}")
 
     # Print nicely
     
     alive_hostes = {ip:status for ip, status in output.items() if status}
     alive_hostes = sort_ip(alive_hostes)
     for host in alive_hostes:
-        print(f"{host} is UP")
+        logger.success(f"{host} is UP") # type: ignore
         with open("netmon_scan_results.txt", "a") as f:
             f.write(f"{host} is UP\n")
     return output
