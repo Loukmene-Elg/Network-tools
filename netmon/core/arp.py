@@ -51,7 +51,7 @@ def windows_arp_check(ip: str, nic_info: List[Optional[str]] | None, timeout_ms:
         if result == 0:
             # Success! Optionally print MAC
             mac_str = ':'.join(f'{b:02x}' for b in mac_addr)
-            logger.success(f"  ✓ ARP resolved: {ip} -> {mac_str}") # type: ignore
+            logger.info(f"  ✓ ARP resolved: {ip} -> {mac_str}") # type: ignore
             return True
         else:
             # Decode common error codes

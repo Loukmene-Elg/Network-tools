@@ -5,12 +5,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from netmon.core.logger import logger
 def search():
     all_nics = network_info()
+    logger.info(f"  Detected {len(all_nics)} NICs")
     output: dict[str, bool] = {}
 
     for address, subnet, interface in all_nics:
         if address is None or subnet is None:
             logger.warning("No nic detected")
             return {"there is a nic with no address or subnet": False}
+        logger.info(f"Scanning subnet {subnet} on interface {interface} with address {address}")
         hosts = create_subnet_hostes(ip=address,mask=subnet)
         nic_info: list[str | None] = [address, subnet, interface]
         with ThreadPoolExecutor(max_workers=500) as executor:
@@ -33,4 +35,7 @@ def search():
         logger.success(f"{host} is UP") # type: ignore
         with open("netmon_scan_results.txt", "a") as f:
             f.write(f"{host} is UP\n")
+    
+    with open("netmon_scan_results.txt", "a") as f:
+        f.write(f"{len(alive_hostes)} hosts are alive.\n")
     return output
