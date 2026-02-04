@@ -3,25 +3,27 @@ from logging.handlers import RotatingFileHandler
 import os
 from colorlog import ColoredFormatter
 import sys
-from typing import Any
+from typing import Any, cast
 
 # --- Directories ---
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_FILE = os.path.join(LOG_DIR, "netmon.log")
 
-# --- Custom Levels ---
-SUCCESS = 50  # your SUCCESS level
+SUCCESS = 50
 logging.addLevelName(SUCCESS, "SUCCESS")
 
-def success(self: logging.Logger, message: str, *args: Any, **kwargs: Any) -> None:
-    if self.isEnabledFor(SUCCESS):
-        self._log(SUCCESS, message, args, **kwargs)
 
-logging.Logger.success = success # type: ignore
+class NetmonLogger(logging.Logger):
+    def success(self, message: str, *args: Any, **kwargs: Any) -> None:
+        if self.isEnabledFor(SUCCESS):
+            self._log(SUCCESS, message, args, **kwargs)
+
+
+logging.setLoggerClass(NetmonLogger)
 
 # --- Logger ---
-logger = logging.getLogger("netmon")
+logger = cast(NetmonLogger, logging.getLogger("netmon"))
 logger.setLevel(SUCCESS)  # base level, log everything in file
 
 # --- File Handler (everything) ---
@@ -65,4 +67,4 @@ def debug(msg: str):
     logger.debug(msg)
 
 def log_success(msg: str):
-    logger.success(msg) # type: ignore
+    logger.success(msg)
