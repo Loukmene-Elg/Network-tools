@@ -4,8 +4,9 @@ from netmon.utils.output import print_output
 from netmon.core.check import Single_host_check
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from netmon.core.logger import logger
-from typing import Dict
-def main(Alive:bool):
+
+
+def main(Alive: bool | None):
     all_nics = network_info()
     logger.info(f"  Detected {len(all_nics)} NICs")
     output: dict[str, bool] = {}
