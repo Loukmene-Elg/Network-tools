@@ -20,6 +20,7 @@ def main():
     # monitor_parser = sub.add_parser("monitor", help="Monitor hosts continuously")
     # scan_parser = sub.add_parser("scan", help="Scan network for devices")
     search_parser = sub.add_parser("search", help="Search a host")
+    search_parser.add_argument("-U", "--UP", help="Look for only Active device")
 
     args = parser.parse_args()
     if args.command == "search":

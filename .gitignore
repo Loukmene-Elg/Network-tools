@@ -8,5 +8,8 @@ netmon_scan_results.txt
 __pycache__/
 *.pyc
 
+#log
+logs/
+
 # Python packaging artifacts
 *.egg-info/

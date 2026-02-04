@@ -1,9 +1,11 @@
 from netmon.core.interface import network_info
-from netmon.utils.ip import create_subnet_hostes, sort_ip
+from netmon.utils.ip import create_subnet_hostes
+from netmon.utils.output import print_output
 from netmon.core.check import Single_host_check
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from netmon.core.logger import logger
-def search():
+from typing import Dict
+def main(Alive:bool):
     all_nics = network_info()
     logger.info(f"  Detected {len(all_nics)} NICs")
     output: dict[str, bool] = {}
@@ -28,14 +30,10 @@ def search():
                     logger.warning(f"Error checking {host_ip}: {e}")
 
     # Print nicely
+    print_output(search_result=output,Alive=Alive)
+   
+    return True
+
+if __name__ == '__main__':
+    import argparse
     
-    alive_hostes = {ip:status for ip, status in output.items() if status}
-    alive_hostes = sort_ip(alive_hostes)
-    for host in alive_hostes:
-        logger.success(f"{host} is UP") # type: ignore
-        with open("netmon_scan_results.txt", "a") as f:
-            f.write(f"{host} is UP\n")
-    
-    with open("netmon_scan_results.txt", "a") as f:
-        f.write(f"{len(alive_hostes)} hosts are alive.\n")
-    return output
